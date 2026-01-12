@@ -1,6 +1,11 @@
-import torch
 import math
 import time
+
+import torch
+import torch.nn
+import torch.nn.functional as F
+from torchvision import transforms
+
 
 class TransformerNetLight(torch.nn.Module):
     def __init__(self):
@@ -37,36 +42,71 @@ class TransformerNetLight(torch.nn.Module):
         # self.pixelshuffle = torch.nn.PixelShuffle(2)
 
     def forward(self, X):
-        # y = self.relu(self.in1(self.conv1(X)))
-        # y = self.relu(self.in2(self.conv2(y)))
-        # y = self.relu(self.in3(self.conv3(y)))
-        starttime = time.time()
-        print(starttime)
         y = self.in1(self.conv1(X))
         y = self.in2(self.conv2(y))
         y = self.in3(self.conv3(y))
 
         y = self.res1(y)
         y = self.res2(y)
-        # y = self.res3(y)
-        # y = self.res4(y)
-        # y = self.res5(y)
-        
+
         y = self.relu(self.in4(self.deconv1(y)))
-        # y = self.in4(self.deconv1(y))
-        # y = self.in4(self.pixelshuffle(self.deconv1(y)))
-        # y = self.pixelshuffle(self.deconv1(y))
-        #y = self.in4(y)
-        
-        # y = self.relu(self.in5(self.deconv2(y)))
         y = self.relu(self.in5(self.deconv2(y)))
-        # y = self.relu(self.pixelshuffle(self.deconv2(y)))
-        #y = self.in5(y)
-        
-        # y = self.pixelshuffle(self.deconv3(y))
+
         y = self.deconv3(y)
-        print(time.time() - starttime)
+
         return y
+    
+    def preprocess_image(self, X) -> torch.Tensor:
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.mul(255))
+        ])
+        return transform(X).unsqueeze(0)
+
+    def process_image(self, X) -> torch.Tensor:
+        with torch.no_grad():
+            return self.forward(X)[0]
+
+    def process_image_motion_vectors(self, X, stylized_X, previous_stylized_X, motion_vectors, normal_map, depth_map) -> torch.Tensor:
+        stylized_color = stylized_X / 255
+        current_frame_color = X
+
+        motion = motion_vectors[:, :2, :, :]
+
+        B, _, H, W = stylized_color.shape
+        device = stylized_color.device
+
+        grid_y, grid_x = torch.meshgrid(torch.arange(H, device=device), torch.arange(W, device=device), indexing="ij")
+        base_grid = torch.stack((grid_x, grid_y), dim=0).float() # (2, H, W)
+
+        previousUV = base_grid.unsqueeze(0) - motion
+
+        norm_uv = previousUV.clone()
+        norm_uv[:, 0] = (norm_uv[:, 0] / (W - 1) * 2.0) - 1.0
+        norm_uv[:, 1] = (norm_uv[:, 1] / (H - 1) * 2.0) - 1.0
+        norm_uv = norm_uv.permute(0, 2, 3, 1)
+
+        motion_previous_stylized_color = F.grid_sample(previous_stylized_X.cpu(), norm_uv.cpu(), align_corners=True).to(device)
+
+        depth = depth_map[:, 0:1, :, :]
+        depth_weight = torch.lerp(torch.tensor(0.0, device=device), torch.tensor(0.2, device=device), depth)
+        depth_weight_c = torch.lerp(torch.tensor(0.0, device=device), torch.tensor(0.4, device=device), depth)
+
+        normal = normal_map * 2.0 - 1.0
+
+        facing_ratio = normal[:, 2:3, :, :]
+        facing_ratio = (facing_ratio + 1.0) * 0.5
+
+        normal_intensity = torch.clamp(normal[:, 2:3, :, :], min=0.0) + 1.0
+        
+        current_frame_color = current_frame_color * normal_intensity
+
+        stylized_new_color = torch.lerp(stylized_color, current_frame_color, depth_weight)
+        output_color = torch.lerp(stylized_new_color, motion_previous_stylized_color, depth_weight_c)
+
+        output_color = torch.clamp(output_color, 0.0, 1.0)
+
+        return output_color
 
 
 class ConvLayer(torch.nn.Module):
