@@ -1,3 +1,12 @@
+# GBGST-optimisations
+
+Key elements:
+* optimisation/SIGK_optimisation.ipynb - analysis and training of various modifications of the model
+* optimisation/<name>.onnx - exported trained models.
+    * The most important models have "_distiled" suffix. Other models are quick optimisations or quantizations of base model
+
+
+
 # Towards Real-time G-buffer-Guided Style Transfer in Computer Games
 
 This repository contains the implementation of the paper ["Towards Real-time G-buffer-Guided Style Transfer in Computer Games"](https://ieeexplore.ieee.org/abstract/document/10458434/) published in IEEE Transactions on Games. The paper presents an approach that uses the G-buffer information available in a game pipeline to generate robust and temporally consistent in-game artistic stylizations based on a style reference image.
