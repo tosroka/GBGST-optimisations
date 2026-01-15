@@ -5,6 +5,11 @@ Key elements:
 * optimisation/<name>.onnx - exported trained models.
     * The most important models have "_distiled" suffix. Other models are quick optimisations or quantizations of base model
 
+Download the training data for distilation:
+```sh
+wget https://dorc.ks3-cn-beijing.ksyun.com/data-set/2020Objects365%E6%95%B0%E6%8D%AE%E9%9B%86/val/images/v1/patch1.tar.gz
+```
+
 
 
 # Towards Real-time G-buffer-Guided Style Transfer in Computer Games
