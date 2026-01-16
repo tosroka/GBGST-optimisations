@@ -1,0 +1,8 @@
+onnx
+onnxruntime-gpu
+onnxoptimizer
+cv2-python
+onnxconverter-common
+onnxruntime-tools
+numpy
+tqdm
