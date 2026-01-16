@@ -1,0 +1,48 @@
+#pragma kernel ProcessOutput
+
+RWTexture2D<half4> Result;
+Texture2D<half4> StylizedImage;
+Texture2D<half4> PreviousStylizedImage;
+Texture2D<half4> MotionVectors;
+Texture2D<half4> NormalMap;
+Texture2D<half4> DepthMap;
+Texture2D<half4> AmbientOcclusion;
+
+float4 _ZBufferParams;
+float4 _ProjectionParams;
+
+float LinearizeDepth(float depth) {
+
+    float _CameraNear = _ProjectionParams.y;
+    float _CameraFar = _ProjectionParams.z;
+    
+    float linearDepth = 1.0f / (_ZBufferParams.x * depth + _ZBufferParams.y);
+    float normalizedDepth = (linearDepth - _CameraNear) / (_CameraFar - _CameraNear);
+
+    return normalizedDepth;
+}
+
+[numthreads(8, 8, 1)]
+void ProcessOutput(uint3 id : SV_DispatchThreadID)
+{
+    half3 stylizedColor = StylizedImage[id.xy].rgb / 255.0h;
+    half3 currentFrameColor = AmbientOcclusion[id.xy].rgb;
+    half2 motion = MotionVectors[id.xy].rg;
+    
+    half2 previousUV = id.xy - motion;
+    half3 motionPreviousStylizedColor = PreviousStylizedImage[previousUV].rgb;
+    
+    half depth = DepthMap[id.xy].r;
+    half depthWeight = lerp(0.0h, 0.2h, depth); 
+    half depthWeightC = lerp(0.0h, 0.4h, depth);
+    half3 normal = NormalMap[id.xy].rgb * 2.0h - 1.0h;
+
+    half normalIntensity = max(dot(normal, half3(0, 0, 1)), 0) + 1.0h;
+    currentFrameColor = currentFrameColor * normalIntensity;
+    half3 stylizedNewColor = lerp(stylizedColor, currentFrameColor, depthWeight);
+    half3 outputColor = lerp(stylizedNewColor, motionPreviousStylizedColor, depthWeightC);
+    
+    outputColor = clamp(outputColor, 0, 1);
+
+    Result[id.xy] = half4(outputColor, 1.0h);
+}

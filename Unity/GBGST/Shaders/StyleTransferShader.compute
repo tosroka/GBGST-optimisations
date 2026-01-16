@@ -1,0 +1,23 @@
+#pragma kernel PrepareInput
+#pragma kernel FinalizeOutput
+
+Texture2D<half4> InputImage;
+RWTexture2D<half4> OutputImage;
+
+// Scales texture colors from 0-1 range to 0-255
+[numthreads(8,8,1)]
+void PrepareInput(uint3 id : SV_DispatchThreadID)
+{
+    OutputImage[id.xy] = half4((InputImage[id.xy].x * 255.0h),
+                               (InputImage[id.xy].y * 255.0h),
+                               (InputImage[id.xy].z * 255.0h), 1.0h);
+}
+
+// Scales colors from 0-255 back to 0-1 range
+[numthreads(8,8,1)]
+void FinalizeOutput(uint3 id : SV_DispatchThreadID)
+{
+    OutputImage[id.xy] = half4((clamp(InputImage[id.xy].x, 0.0f, 255.0f) / 255.0f),
+                               (clamp(InputImage[id.xy].y, 0.0f, 255.0f) / 255.0f),
+                               (clamp(InputImage[id.xy].z, 0.0f, 255.0f) / 255.0f), 1.0h);
+}
