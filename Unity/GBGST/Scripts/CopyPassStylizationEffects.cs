@@ -93,6 +93,8 @@ namespace GBGST.Scripts
             base.Cleanup();
 
             styleTransferWorker?.Dispose();
+            inferenceEngine?.Dispose();
+            
             previousStylized?.Release();
             previousNormalsTexture?.Release();
             motionVectorsTexture?.Release();
@@ -102,6 +104,8 @@ namespace GBGST.Scripts
 
             styleTransferWorker = null;
             styleTransferModel = null;
+            inferenceEngine = null;
+            
             previousStylized = null;
             previousNormalsTexture = null;
 
@@ -154,6 +158,7 @@ namespace GBGST.Scripts
             ambientOcclusionTexture = ctx.hdCamera.GetCurrentFrameRT((int)HDCameraFrameHistoryType.AmbientOcclusion);
 
             SyncRenderTextureAspect(depthTexture, ctx.hdCamera.camera);
+            SyncRenderTextureAspect(previousStylized, ctx.hdCamera.camera);
 
             StylizeImage(diffuseTexture, previousStylized, motionVectorsTexture, normalsTexture, depthTexture,
                 ambientOcclusionTexture, hasPreviousStylizedBeenSet);
@@ -284,7 +289,7 @@ namespace GBGST.Scripts
             styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderDepthMap, inputDepth);
             styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderOcclusion, inputAO);
             
-            styleTransferTemporalShader.Dispatch(kernelHandle, 1920, 1080, 1);
+            styleTransferTemporalShader.Dispatch(kernelHandle, image.width / 8, image.height / 8, 1);
 
             Graphics.Blit(temporary, imageStylized);
 
