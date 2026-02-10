@@ -51,6 +51,13 @@ namespace GBGST.Scripts
 
         RenderTexture previousStylized;
         bool hasPreviousStylizedBeenSet;
+        private bool needsReload;
+
+        public void SetModelAndReload(NNModel newModel)
+        {
+            modelAsset = newModel;
+            needsReload = true;
+        }
 
         #region Setup & Cleanup
 
@@ -94,7 +101,7 @@ namespace GBGST.Scripts
 
             styleTransferWorker?.Dispose();
             inferenceEngine?.Dispose();
-            
+
             previousStylized?.Release();
             previousNormalsTexture?.Release();
             motionVectorsTexture?.Release();
@@ -105,7 +112,7 @@ namespace GBGST.Scripts
             styleTransferWorker = null;
             styleTransferModel = null;
             inferenceEngine = null;
-            
+
             previousStylized = null;
             previousNormalsTexture = null;
 
@@ -120,9 +127,16 @@ namespace GBGST.Scripts
 
         private static readonly int GBufferShaderCameraBuffer = Shader.PropertyToID("CameraBuffer");
         private static readonly int GBufferShaderStylizedTexture = Shader.PropertyToID("StylizedTexture");
-        
+
         protected override void Execute(CustomPassContext ctx)
         {
+            if (needsReload && modelAsset != null)
+            {
+                Cleanup();
+                Setup(ctx.renderContext, ctx.cmd);
+                needsReload = false;
+            }
+
             var scale = RTHandles.rtHandleProperties.rtHandleScale;
 
             diffuseTexture = ctx.hdCamera.GetCurrentFrameRT((int)HDCameraFrameHistoryType.ColorBufferMipChain);
@@ -190,12 +204,12 @@ namespace GBGST.Scripts
         {
             RenderTexture source = RenderTexture.GetTemporary(src.width, src.height, 24, src.format);
             Graphics.Blit(src, source);
-            
+
             RenderTexture rTex = RenderTexture.GetTemporary(src.width, src.height, 24, src.format);
             Graphics.Blit(src, rTex);
-            
+
             ExecuteStyleTransferShader(rTex, StyleTransferShaderStep.PrepareInput);
-            
+
             Tensor input = new Tensor(rTex, channels: 3);
             inferenceEngine.Execute(input);
             Tensor prediction = inferenceEngine.PeekOutput();
@@ -212,7 +226,7 @@ namespace GBGST.Scripts
                     StyleTransferTemporalShaderStep.ProcessOutput);
             }
             else ExecuteStyleTransferShader(rTex, StyleTransferShaderStep.FinalizeOutput);
-            
+
             hasPreviousStylizedBeenSet = true;
             Graphics.Blit(rTex, src);
 
@@ -229,10 +243,13 @@ namespace GBGST.Scripts
         {
             ProcessOutput
         }
-        
+
         private static readonly int StyleTransferTemporalShaderResult = Shader.PropertyToID("Result");
         private static readonly int StyleTransferTemporalShaderStylizedImage = Shader.PropertyToID("StylizedImage");
-        private static readonly int StyleTransferTemporalShaderPreviousStylizedImage = Shader.PropertyToID("PreviousStylizedImage");
+
+        private static readonly int StyleTransferTemporalShaderPreviousStylizedImage =
+            Shader.PropertyToID("PreviousStylizedImage");
+
         private static readonly int StyleTransferTemporalShaderMotionVectors = Shader.PropertyToID("MotionVectors");
         private static readonly int StyleTransferTemporalShaderNormalMap = Shader.PropertyToID("NormalMap");
         private static readonly int StyleTransferTemporalShaderDepthMap = Shader.PropertyToID("DepthMap");
@@ -282,13 +299,16 @@ namespace GBGST.Scripts
             Graphics.Blit(ao, inputAO);
 
             styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderResult, temporary);
-            styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderStylizedImage, imageStylized);
-            styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderPreviousStylizedImage, inputTexture);
-            styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderMotionVectors, inputMotionVectors);
+            styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderStylizedImage,
+                imageStylized);
+            styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderPreviousStylizedImage,
+                inputTexture);
+            styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderMotionVectors,
+                inputMotionVectors);
             styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderNormalMap, inputNormals);
             styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderDepthMap, inputDepth);
             styleTransferTemporalShader.SetTexture(kernelHandle, StyleTransferTemporalShaderOcclusion, inputAO);
-            
+
             styleTransferTemporalShader.Dispatch(kernelHandle, image.width / 8, image.height / 8, 1);
 
             Graphics.Blit(temporary, imageStylized);
@@ -313,7 +333,7 @@ namespace GBGST.Scripts
 
         private static readonly int StyleTransferShaderInputImage = Shader.PropertyToID("InputImage");
         private static readonly int StyleTransferShaderOutputImage = Shader.PropertyToID("OutputImage");
-        
+
         // Prepares or finalizes the image for style transfer using the selected shader step.
         private void ExecuteStyleTransferShader(RenderTexture inputImage, StyleTransferShaderStep step)
         {
