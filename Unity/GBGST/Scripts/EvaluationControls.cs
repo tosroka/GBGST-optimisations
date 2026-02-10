@@ -9,6 +9,7 @@ namespace GBGST.Scripts
         #region Properties
 
         [Header("Custom Pass Settings")] public CustomPassVolume customPassVolume;
+        [Header("FPS Counter")] public FpsCounter fpsCounter;
 
         #endregion
 
@@ -17,8 +18,13 @@ namespace GBGST.Scripts
         void Start()
         {
             Debug.Log($"Screenshot directory: {Application.persistentDataPath}");
+
+            fpsCounter.MeasurementCompleted += (result =>
+            {
+                Debug.Log($"{result.Display()}");
+            });
         }
-        
+
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.R))
@@ -37,6 +43,11 @@ namespace GBGST.Scripts
                 {
                     customPassVolume.enabled = !customPassVolume.enabled;
                 }
+            }
+
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                fpsCounter.StartMeasurement(5f);
             }
         }
 
