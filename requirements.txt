@@ -1,8 +1,12 @@
 onnx
 onnxruntime-gpu
 onnxoptimizer
-cv2-python
+opencv-python
 onnxconverter-common
 onnxruntime-tools
-numpy
+numpy<2
 tqdm
+matplotlib
+torch
+torchvision
+onnx_tool
