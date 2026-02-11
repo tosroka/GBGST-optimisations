@@ -18,6 +18,7 @@ namespace GBGST.Scripts
         #endregion
 
         private int currentId = 0;
+        private string currentName = "";
         private int currentModelIndex = 0;
         private CopyPassStylizationEffects stylizationPass;
 
@@ -38,7 +39,7 @@ namespace GBGST.Scripts
             }
 
             if (fpsCounter != null)
-                fpsCounter.MeasurementCompleted += (result => { Debug.Log($"{result.Display()}"); });
+                fpsCounter.MeasurementCompleted += (result => { Debug.Log($"{currentId} | {currentName} | {result.Display()}"); });
         }
 
         void Update()
@@ -83,6 +84,8 @@ namespace GBGST.Scripts
 
             index = ((index % models.Count) + models.Count) % models.Count;
             NNModel model = models[index];
+
+            currentName = model.name;
 
             if (stylizationPass != null)
             {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace GBGST.Scripts
@@ -72,7 +73,8 @@ namespace GBGST.Scripts
                 top99Fps = ToFps(top99Ft),
                 minFrameTimeMs = minFt * 1000f,
                 maxFrameTimeMs = maxFt * 1000f,
-                top99FrameTimeMs = top99Ft * 1000f
+                top99FrameTimeMs = top99Ft * 1000f,
+                averageFrameTimeMs = sorted.Sum() * 1000f / sorted.Count,
             };
         }
 
@@ -86,11 +88,12 @@ namespace GBGST.Scripts
             public float minFrameTimeMs;
             public float maxFrameTimeMs;
             public float top99FrameTimeMs;
+            public float averageFrameTimeMs;
 
             public string Display()
             {
                 return
-                    $"Sample count: {sampleCount}, Min FPS: {minFps}, Max FPS: {maxFps}, Top 99 FPS: {top99Fps}, Min frame time: {minFrameTimeMs}ms, Max frame time: {maxFrameTimeMs}ms, Top 99 frame time: {top99FrameTimeMs}ms";
+                    $"Sample count: {sampleCount}, Min FPS: {minFps}, Max FPS: {maxFps}, Top 99 FPS: {top99Fps}, Min frame time: {minFrameTimeMs}ms, Max frame time: {maxFrameTimeMs}ms, Top 99 frame time: {top99FrameTimeMs}ms, Avg frame time: {averageFrameTimeMs}";
             }
         }
     }
